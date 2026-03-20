@@ -57,7 +57,7 @@ KINDEOF
 
   provisioner "local-exec" {
     when    = destroy
-    command = "kind delete cluster --name ${var.cluster_name} || true"
+    command = "kind delete cluster --name ${self.triggers.cluster_name} || true"
   }
 }
 

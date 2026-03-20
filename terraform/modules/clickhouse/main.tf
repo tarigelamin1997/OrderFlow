@@ -71,8 +71,14 @@ resource "kubernetes_deployment" "clickhouse" {
           name  = "clickhouse"
           image = "clickhouse/clickhouse-server:24.8"
 
-          port { container_port = 8123 name = "http" }
-          port { container_port = 9000 name = "native" }
+          port {
+            container_port = 8123
+            name           = "http"
+          }
+          port {
+            container_port = 9000
+            name           = "native"
+          }
 
           resources {
             requests = { cpu = "1000m", memory = "3Gi" }

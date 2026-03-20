@@ -105,7 +105,9 @@ resource "kubernetes_stateful_set" "airflow" {
             config_map_ref { name = kubernetes_config_map.airflow_config.metadata[0].name }
           }
 
-          port { container_port = 8080 }
+          port {
+            container_port = 8080
+          }
 
           resources {
             requests = { cpu = "500m", memory = "1Gi" }

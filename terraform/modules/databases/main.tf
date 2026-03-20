@@ -69,7 +69,9 @@ resource "kubernetes_deployment" "postgres" {
             }
           }
 
-          port { container_port = 5432 }
+          port {
+            container_port = 5432
+          }
 
           resources {
             requests = { cpu = "250m", memory = "256Mi" }
@@ -286,7 +288,9 @@ resource "kubernetes_deployment" "mongodb" {
             }
           }
 
-          port { container_port = 27017 }
+          port {
+            container_port = 27017
+          }
 
           resources {
             requests = { cpu = "250m", memory = "256Mi" }

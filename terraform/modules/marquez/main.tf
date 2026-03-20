@@ -37,8 +37,14 @@ resource "kubernetes_deployment" "marquez_api" {
             value = "5001"
           }
 
-          port { container_port = 5000 name = "api" }
-          port { container_port = 5001 name = "admin" }
+          port {
+            container_port = 5000
+            name           = "api"
+          }
+          port {
+            container_port = 5001
+            name           = "admin"
+          }
 
           resources {
             requests = { cpu = "200m", memory = "256Mi" }
@@ -103,7 +109,9 @@ resource "kubernetes_deployment" "marquez_web" {
             value = "5000"
           }
 
-          port { container_port = 3000 }
+          port {
+            container_port = 3000
+          }
 
           resources {
             requests = { cpu = "100m", memory = "128Mi" }

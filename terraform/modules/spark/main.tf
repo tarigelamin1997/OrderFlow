@@ -101,8 +101,14 @@ resource "kubernetes_deployment" "minio" {
             }
           }
 
-          port { container_port = 9000 name = "s3" }
-          port { container_port = 9001 name = "console" }
+          port {
+            container_port = 9000
+            name           = "s3"
+          }
+          port {
+            container_port = 9001
+            name           = "console"
+          }
 
           resources {
             requests = { cpu = "200m", memory = "256Mi" }

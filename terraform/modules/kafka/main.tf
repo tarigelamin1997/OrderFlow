@@ -285,7 +285,9 @@ resource "kubernetes_deployment" "schema_registry" {
             value = "http://0.0.0.0:8081"
           }
 
-          port { container_port = 8081 }
+          port {
+            container_port = 8081
+          }
 
           resources {
             requests = { cpu = "200m", memory = "256Mi" }

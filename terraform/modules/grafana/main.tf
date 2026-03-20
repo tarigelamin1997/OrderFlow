@@ -68,7 +68,9 @@ resource "kubernetes_deployment" "grafana" {
             value = "false"
           }
 
-          port { container_port = 3000 }
+          port {
+            container_port = 3000
+          }
 
           resources {
             requests = { cpu = "200m", memory = "256Mi" }
