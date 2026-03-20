@@ -207,11 +207,12 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: mongo.foodtech.user_events
+  name: mongo.foodtech.user-events
   namespace: kafka
   labels:
     strimzi.io/cluster: orderflow-kafka
 spec:
+  topicName: mongo.foodtech.user_events
   partitions: 3
   replicas: 1
   config:
@@ -220,11 +221,12 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: mongo.foodtech.delivery_updates
+  name: mongo.foodtech.delivery-updates
   namespace: kafka
   labels:
     strimzi.io/cluster: orderflow-kafka
 spec:
+  topicName: mongo.foodtech.delivery_updates
   partitions: 3
   replicas: 1
   config:
@@ -271,6 +273,8 @@ resource "kubernetes_deployment" "schema_registry" {
       metadata { labels = { app = "schema-registry" } }
 
       spec {
+        enable_service_links = false
+
         container {
           name  = "schema-registry"
           image = "confluentinc/cp-schema-registry:7.6.1"

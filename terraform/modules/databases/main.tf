@@ -43,10 +43,9 @@ resource "kubernetes_deployment" "postgres" {
           name  = "postgres"
           image = "postgres:15"
 
-          # Pass replication settings as command args — avoids needing a custom
-          # config file mount while keeping the image unmodified.
-          command = [
-            "postgres",
+          # Pass replication settings as args — preserves docker-entrypoint.sh
+          # which handles DB init and user switching (postgres refuses to run as root).
+          args = [
             "-c", "wal_level=logical",
             "-c", "max_replication_slots=10",
             "-c", "max_wal_senders=10",
