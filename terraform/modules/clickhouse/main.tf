@@ -19,10 +19,20 @@ resource "kubernetes_config_map" "clickhouse_config" {
   data = {
     "config.xml" = <<-XML
       <clickhouse>
-        <max_memory_usage>3221225472</max_memory_usage>
         <max_server_memory_usage>6442450944</max_server_memory_usage>
         <max_concurrent_queries>100</max_concurrent_queries>
         <listen_host>0.0.0.0</listen_host>
+      </clickhouse>
+    XML
+
+    # max_memory_usage is a user-level setting — must go in users.xml profiles
+    "users.xml" = <<-XML
+      <clickhouse>
+        <profiles>
+          <default>
+            <max_memory_usage>3221225472</max_memory_usage>
+          </default>
+        </profiles>
       </clickhouse>
     XML
 
@@ -96,6 +106,13 @@ resource "kubernetes_deployment" "clickhouse" {
             name       = "clickhouse-config"
             mount_path = "/etc/clickhouse-server/config.d/custom.xml"
             sub_path   = "config.xml"
+          }
+
+          # User-level settings (max_memory_usage per query)
+          volume_mount {
+            name       = "clickhouse-config"
+            mount_path = "/etc/clickhouse-server/users.d/custom.xml"
+            sub_path   = "users.xml"
           }
 
           # Init SQL runs via entrypoint — creates 5 databases on first launch

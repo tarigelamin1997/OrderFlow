@@ -310,8 +310,9 @@ resource "kubernetes_deployment" "mongodb" {
             exec {
               command = ["mongosh", "--eval", "db.adminCommand('ping')"]
             }
-            initial_delay_seconds = 20
+            initial_delay_seconds = 30
             period_seconds        = 10
+            timeout_seconds       = 5
           }
         }
 
