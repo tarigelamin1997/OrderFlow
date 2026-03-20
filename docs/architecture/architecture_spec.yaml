@@ -1,0 +1,270 @@
+# architecture_spec.yaml — source of truth for the OrderFlow architecture diagram.
+# generate_diagram.py reads this and produces orderflow_architecture.drawio + .svg.
+# To update the diagram: edit this file, then run `make diagram`.
+
+diagram:
+  title: "OrderFlow — Data Engineering Platform"
+  width: 1800
+  height: 1100
+
+layers:
+  - id: aws
+    label: "AWS Layer (eu-north-1)"
+    color: "#FFE6CC"
+    border_color: "#D6B656"
+    x: 20
+    y: 20
+    width: 1760
+    height: 120
+    nodes:
+      - id: ec2
+        label: "EC2 t3.2xlarge\nUbuntu 22.04 / 100GB EBS"
+        x: 800
+        y: 50
+        width: 200
+        height: 60
+        color: "#FF8000"
+        font_color: "#FFFFFF"
+
+  - id: kind
+    label: "Kind Cluster (1 control-plane + 2 workers)"
+    color: "#DAE8FC"
+    border_color: "#6C8EBF"
+    x: 20
+    y: 160
+    width: 1760
+    height: 900
+
+nodes:
+  # ── Databases ──────────────────────────────────────────────────────────────
+  - id: postgres
+    label: "PostgreSQL 15\nwal_level=logical\n:30432"
+    layer: kind
+    x: 60
+    y: 220
+    width: 160
+    height: 70
+    color: "#316192"
+    font_color: "#FFFFFF"
+    phase: 1
+    namespace: databases
+
+  - id: mongodb
+    label: "MongoDB 6.0\nreplSet rs0\n:30017"
+    layer: kind
+    x: 60
+    y: 320
+    width: 160
+    height: 70
+    color: "#4CAF50"
+    font_color: "#FFFFFF"
+    phase: 1
+    namespace: databases
+
+  # ── Streaming ─────────────────────────────────────────────────────────────
+  - id: kafka
+    label: "Kafka 3.7.0\nKRaft / Strimzi 0.40\n:30092"
+    layer: kind
+    x: 280
+    y: 220
+    width: 160
+    height: 70
+    color: "#000000"
+    font_color: "#FFFFFF"
+    phase: 1
+    namespace: kafka
+
+  - id: schema_registry
+    label: "Schema Registry\n7.6.1\n:30081"
+    layer: kind
+    x: 280
+    y: 320
+    width: 160
+    height: 70
+    color: "#CC0000"
+    font_color: "#FFFFFF"
+    phase: 1
+    namespace: kafka
+
+  - id: kafka_connect
+    label: "Kafka Connect\n(Debezium 2.7.0)\n:30083"
+    layer: kind
+    x: 280
+    y: 420
+    width: 160
+    height: 70
+    color: "#CC0000"
+    font_color: "#FFFFFF"
+    phase: 2
+    namespace: kafka
+
+  # ── Storage ───────────────────────────────────────────────────────────────
+  - id: clickhouse
+    label: "ClickHouse 24.8 LTS\nbronze/silver/gold\n:30123"
+    layer: kind
+    x: 500
+    y: 220
+    width: 160
+    height: 70
+    color: "#FFCC00"
+    font_color: "#000000"
+    phase: 1
+    namespace: clickhouse
+
+  - id: minio
+    label: "MinIO\norflow-raw/silver\n:30910"
+    layer: kind
+    x: 500
+    y: 320
+    width: 160
+    height: 70
+    color: "#C82F2F"
+    font_color: "#FFFFFF"
+    phase: 1
+    namespace: spark
+
+  # ── Processing ────────────────────────────────────────────────────────────
+  - id: spark
+    label: "Spark 3.5.1\nDelta Lake 3.1.0\n(ephemeral jobs)"
+    layer: kind
+    x: 720
+    y: 220
+    width: 160
+    height: 70
+    color: "#E25A1C"
+    font_color: "#FFFFFF"
+    phase: 4
+    namespace: spark
+
+  - id: dbt
+    label: "dbt 1.8.0\ndbt-clickhouse\ndbt-spark"
+    layer: kind
+    x: 720
+    y: 320
+    width: 160
+    height: 70
+    color: "#FF6347"
+    font_color: "#FFFFFF"
+    phase: 5
+    namespace: airflow
+
+  # ── Orchestration ─────────────────────────────────────────────────────────
+  - id: airflow
+    label: "Airflow 2.10.0\nLocalExecutor\n:30080"
+    layer: kind
+    x: 940
+    y: 220
+    width: 160
+    height: 70
+    color: "#017CEE"
+    font_color: "#FFFFFF"
+    phase: 1
+    namespace: airflow
+
+  - id: great_expectations
+    label: "Great Expectations\n0.18.0"
+    layer: kind
+    x: 940
+    y: 320
+    width: 160
+    height: 70
+    color: "#FF6B35"
+    font_color: "#FFFFFF"
+    phase: 6
+    namespace: airflow
+
+  # ── Observability ─────────────────────────────────────────────────────────
+  - id: grafana
+    label: "Grafana\n(Altinity plugin)\n:30300"
+    layer: kind
+    x: 1160
+    y: 220
+    width: 160
+    height: 70
+    color: "#F46800"
+    font_color: "#FFFFFF"
+    phase: 1
+    namespace: monitoring
+
+  - id: marquez
+    label: "Marquez 0.48.0\nLineage API\n:30500"
+    layer: kind
+    x: 1160
+    y: 320
+    width: 160
+    height: 70
+    color: "#3F88C5"
+    font_color: "#FFFFFF"
+    phase: 1
+    namespace: marquez
+
+connections:
+  - from: postgres
+    to: kafka_connect
+    label: "CDC (Debezium)"
+    phase: 2
+
+  - from: mongodb
+    to: kafka_connect
+    label: "CDC (Debezium)"
+    phase: 2
+
+  - from: kafka_connect
+    to: kafka
+    label: "Avro/JSON"
+    phase: 2
+
+  - from: kafka_connect
+    to: minio
+    label: "S3 Sink (Parquet)"
+    phase: 2
+
+  - from: kafka
+    to: clickhouse
+    label: "Kafka Engine\n(Bronze)"
+    phase: 3
+
+  - from: minio
+    to: spark
+    label: "Delta Lake reads"
+    phase: 4
+
+  - from: spark
+    to: minio
+    label: "Delta Lake writes"
+    phase: 4
+
+  - from: spark
+    to: clickhouse
+    label: "JDBC (gold batch)"
+    phase: 4
+
+  - from: dbt
+    to: clickhouse
+    label: "dbt models\n(Silver→Gold)"
+    phase: 5
+
+  - from: airflow
+    to: dbt
+    label: "orchestrates"
+    phase: 5
+
+  - from: airflow
+    to: spark
+    label: "SparkApplication"
+    phase: 4
+
+  - from: airflow
+    to: marquez
+    label: "OpenLineage"
+    phase: 1
+
+  - from: grafana
+    to: clickhouse
+    label: "queries"
+    phase: 7
+
+  - from: schema_registry
+    to: kafka_connect
+    label: "Avro schemas"
+    phase: 2

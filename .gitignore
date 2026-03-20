@@ -1,0 +1,59 @@
+# AWS credentials and keys — never committed
+*.pem
+*.p12
+.env
+.env.*
+
+# Terraform state and cache
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+# .terraform.lock.hcl is committed — it pins provider versions
+!.terraform.lock.hcl
+
+# Sensitive variable files
+*.tfvars.local
+secrets.tfvars
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# dbt — generated artifacts, not source
+dbt/orderflow_clickhouse/target/
+dbt/orderflow_clickhouse/dbt_packages/
+dbt/orderflow_clickhouse/logs/
+dbt/orderflow_spark/target/
+dbt/orderflow_spark/dbt_packages/
+dbt/orderflow_spark/logs/
+
+# Airflow
+airflow/logs/
+airflow/*.db
+airflow/*.cfg
+
+# Kind kubeconfig — contains cluster credentials
+kubeconfig
+*.kubeconfig
+
+# Great Expectations
+airflow/great_expectations/uncommitted/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ec2 instance ip address file
+connect.ps1
