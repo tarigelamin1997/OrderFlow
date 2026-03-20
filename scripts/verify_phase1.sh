@@ -39,7 +39,7 @@ check 1 "Kind nodes Ready" "$result" "3"
 
 # CHECK 2: All pods Running or Completed, zero CrashLoopBackOff
 echo "Check 2: All pods Running/Completed, zero CrashLoopBackOff"
-crash_count=$(kubectl get pods -A --no-headers 2>/dev/null | grep -c "CrashLoopBackOff" || echo "0")
+crash_count=$(kubectl get pods -A --no-headers 2>/dev/null | grep -c "CrashLoopBackOff" || true)
 if [[ "$crash_count" == "0" ]]; then
   echo "  CHECK 2 PASS — No CrashLoopBackOff pods"
   PASS=$((PASS + 1))
@@ -111,7 +111,7 @@ check 7 "PostgreSQL wal_level" "$result" "logical"
 echo "Check 8: MongoDB user_events — expects ~30000 (>= 29000)"
 result=$(kubectl exec -n databases deployment/mongodb -- \
   mongosh --quiet \
-  "mongodb://orderflow:orderflow_mongo_pass@localhost:27017/foodtech?authSource=admin" \
+  "mongodb://localhost:27017/foodtech?directConnection=true" \
   --eval "db.user_events.countDocuments()" 2>/dev/null \
   | tail -1 || echo "0")
 if [[ "$result" -ge 29000 ]] 2>/dev/null; then
