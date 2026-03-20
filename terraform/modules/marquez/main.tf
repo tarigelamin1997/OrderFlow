@@ -9,12 +9,30 @@ resource "kubernetes_namespace" "marquez" {
 # ║  Uses PostgreSQL backend (marquezproject/marquez requires PostgreSQL).     ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
-# Create marquez database in PostgreSQL (same pattern as airflow module)
+# ExternalName service so Marquez dev config (uses hostname "postgres") resolves
+# to the PostgreSQL pod in the databases namespace.
+resource "kubernetes_service" "postgres_alias" {
+  metadata {
+    name      = "postgres"
+    namespace = kubernetes_namespace.marquez.metadata[0].name
+  }
+  spec {
+    type          = "ExternalName"
+    external_name = "postgres.databases.svc.cluster.local"
+  }
+}
+
+# Create marquez database in PostgreSQL (same pattern as airflow module).
+# Waits for PostgreSQL to be ready before attempting to create the database.
 resource "null_resource" "marquez_db" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
+      kubectl wait --namespace databases \
+        --for=condition=ready pod \
+        --selector=app=postgres \
+        --timeout=120s
       kubectl exec -n databases deployment/postgres -- psql -U orderflow -d orderflow -c "
         CREATE DATABASE marquez;
       " 2>/dev/null || echo "Marquez DB already exists — skipping"
