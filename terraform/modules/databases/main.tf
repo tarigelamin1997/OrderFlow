@@ -239,6 +239,12 @@ resource "kubernetes_deployment" "mongodb" {
     replicas = 1
     selector { match_labels = { app = "mongodb" } }
 
+    # Recreate strategy required — ReadWriteOnce PVC cannot be shared
+    # between old and new pods during a rolling update.
+    strategy {
+      type = "Recreate"
+    }
+
     template {
       metadata { labels = { app = "mongodb" } }
 
