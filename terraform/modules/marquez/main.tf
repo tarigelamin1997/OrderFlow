@@ -6,8 +6,21 @@ resource "kubernetes_namespace" "marquez" {
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║  Marquez 0.48.0 — data lineage tracking                                   ║
 # ║  Deployed in Phase 1 so CDC lineage from Phase 2+ is captured from day 1. ║
-# ║  In-memory H2 backend — lineage is re-emitted on each pipeline run.       ║
+# ║  Uses PostgreSQL backend (marquezproject/marquez requires PostgreSQL).     ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+# Create marquez database in PostgreSQL (same pattern as airflow module)
+resource "null_resource" "marquez_db" {
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOF
+      set -euo pipefail
+      kubectl exec -n databases deployment/postgres -- psql -U orderflow -d orderflow -c "
+        CREATE DATABASE marquez;
+      " 2>/dev/null || echo "Marquez DB already exists — skipping"
+    EOF
+  }
+}
 
 resource "kubernetes_deployment" "marquez_api" {
   metadata {
@@ -36,6 +49,26 @@ resource "kubernetes_deployment" "marquez_api" {
             name  = "MARQUEZ_ADMIN_PORT"
             value = "5001"
           }
+          env {
+            name  = "POSTGRES_HOST"
+            value = "postgres.databases.svc.cluster.local"
+          }
+          env {
+            name  = "POSTGRES_PORT"
+            value = "5432"
+          }
+          env {
+            name  = "POSTGRES_DB"
+            value = "marquez"
+          }
+          env {
+            name  = "POSTGRES_USER"
+            value = "orderflow"
+          }
+          env {
+            name  = "POSTGRES_PASSWORD"
+            value = "orderflow_pg_pass"
+          }
 
           port {
             container_port = 5000
@@ -63,6 +96,8 @@ resource "kubernetes_deployment" "marquez_api" {
       }
     }
   }
+
+  depends_on = [null_resource.marquez_db]
 }
 
 resource "kubernetes_service" "marquez_api" {

@@ -60,6 +60,7 @@ resource "kubernetes_persistent_volume_claim" "minio" {
       requests = { storage = var.minio_storage_size }
     }
   }
+  wait_until_bound = false
 }
 
 resource "kubernetes_deployment" "minio" {

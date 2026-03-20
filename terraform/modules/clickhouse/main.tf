@@ -50,6 +50,7 @@ resource "kubernetes_persistent_volume_claim" "clickhouse" {
       requests = { storage = "20Gi" }
     }
   }
+  wait_until_bound = false
 }
 
 resource "kubernetes_deployment" "clickhouse" {

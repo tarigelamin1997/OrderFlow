@@ -5,6 +5,7 @@ locals {
     name: ${var.cluster_name}
     nodes:
       - role: control-plane
+        image: kindest/node:v1.31.4
         extraPortMappings:
           - { containerPort: 30432, hostPort: 30432 }
           - { containerPort: 30017, hostPort: 30017 }
@@ -21,7 +22,9 @@ locals {
           - { containerPort: 30301, hostPort: 30301 }
           - { containerPort: 30404, hostPort: 30404 }
       - role: worker
+        image: kindest/node:v1.31.4
       - role: worker
+        image: kindest/node:v1.31.4
   YAML
 }
 

@@ -21,6 +21,7 @@ resource "kubernetes_persistent_volume_claim" "postgres" {
       requests = { storage = "5Gi" }
     }
   }
+  wait_until_bound = false
 }
 
 resource "kubernetes_deployment" "postgres" {
@@ -211,6 +212,7 @@ resource "kubernetes_persistent_volume_claim" "mongodb" {
       requests = { storage = "5Gi" }
     }
   }
+  wait_until_bound = false
 }
 
 resource "null_resource" "mongodb_secret" {
