@@ -11,10 +11,12 @@ USER airflow
 
 # Install packages required by Phase 1-9 DAGs.
 # Versions pinned to match versions.yaml — check_version_drift.py validates these.
+# Exact pins avoid pip ResolutionTooDeep with wildcard dbt-spark/dbt-adapters chains.
 RUN pip install --no-cache-dir \
-    dbt-clickhouse==1.8.* \
-    dbt-spark==1.8.* \
+    dbt-core==1.8.0 \
+    dbt-clickhouse==1.8.4 \
+    dbt-spark[PyHive]==1.8.0 \
     apache-airflow-providers-cncf-kubernetes \
     apache-airflow-providers-openlineage \
-    great-expectations==0.18.* \
+    great-expectations==0.18.21 \
     clickhouse-driver

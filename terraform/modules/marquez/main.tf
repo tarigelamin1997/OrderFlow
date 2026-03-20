@@ -35,7 +35,10 @@ resource "null_resource" "marquez_db" {
         --timeout=120s
       kubectl exec -n databases deployment/postgres -- psql -U orderflow -d orderflow -c "
         CREATE DATABASE marquez;
-      " 2>/dev/null || echo "Marquez DB already exists — skipping"
+        CREATE USER marquez WITH PASSWORD 'marquez';
+        GRANT ALL PRIVILEGES ON DATABASE marquez TO marquez;
+        ALTER DATABASE marquez OWNER TO marquez;
+      " 2>/dev/null || echo "Marquez DB/user already exists — skipping"
     EOF
   }
 }
