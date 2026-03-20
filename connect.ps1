@@ -6,7 +6,9 @@ $REGION = "eu-north-1"
 $PROFILE = "orderflow"
 
 # Get instance IP from Terraform output (Elastic IP)
-$INSTANCE_IP = (cd terraform/aws && terraform output -raw public_ip)
+Push-Location terraform/aws
+$INSTANCE_IP = (terraform output -raw public_ip)
+Pop-Location
 if (-not $INSTANCE_IP) {
     Write-Host "ERROR: Could not get public_ip from Terraform output" -ForegroundColor Red
     exit 1
