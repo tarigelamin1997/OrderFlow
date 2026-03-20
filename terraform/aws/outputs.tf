@@ -5,7 +5,7 @@ output "instance_id" {
 
 output "public_ip" {
   description = "EC2 public IP — set in ~/.ssh/config HostName for SSH tunnel"
-  value       = aws_instance.orderflow.public_ip
+  value       = aws_eip.orderflow.public_ip
 }
 
 output "instance_dns" {

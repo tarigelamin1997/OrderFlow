@@ -155,3 +155,16 @@ resource "aws_instance" "orderflow" {
     Project = "orderflow"
   }
 }
+
+resource "aws_eip" "orderflow" {
+  domain = "vpc"
+  tags = {
+    Name    = "orderflow-eip"
+    Project = "orderflow"
+  }
+}
+
+resource "aws_eip_association" "orderflow" {
+  instance_id   = aws_instance.orderflow.id
+  allocation_id = aws_eip.orderflow.id
+}
