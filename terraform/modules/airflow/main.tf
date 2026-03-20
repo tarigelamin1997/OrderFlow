@@ -59,7 +59,6 @@ resource "kubernetes_config_map" "airflow_config" {
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN              = "postgresql+psycopg2://airflow:airflow_pass@postgres.databases.svc.cluster.local:5432/airflow"
     AIRFLOW__CORE__FERNET_KEY                        = "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLt0nfd7gY="
     AIRFLOW__WEBSERVER__SECRET_KEY                   = "orderflow_airflow_secret"
-    AIRFLOW__LINEAGE__BACKEND                        = "openlineage"
     AIRFLOW__OPENLINEAGE__TRANSPORT                  = "{\"type\": \"http\", \"url\": \"http://marquez-api.marquez.svc.cluster.local:5000\"}"
     AIRFLOW__OPENLINEAGE__NAMESPACE                  = "orderflow"
   }
