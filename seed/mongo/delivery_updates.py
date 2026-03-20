@@ -21,7 +21,7 @@ RANDOM_SEED = 42
 
 MONGO_URI = os.getenv(
     "MONGO_URI",
-    "mongodb://orderflow:orderflow_mongo_pass@localhost:30017/foodtech?authSource=admin&directConnection=true"
+    "mongodb://localhost:30017/foodtech?directConnection=true"
 )
 
 DELIVERY_STATUSES = [
