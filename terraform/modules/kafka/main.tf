@@ -40,6 +40,7 @@ resource "null_resource" "kafka_kraft" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
 
@@ -123,6 +124,7 @@ resource "null_resource" "wait_for_kafka" {
   depends_on = [null_resource.kafka_kraft]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       echo "Waiting for Kafka cluster to be Ready (up to 5 min)..."
@@ -144,6 +146,7 @@ resource "null_resource" "kafka_topics" {
   depends_on = [null_resource.wait_for_kafka]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       kubectl apply -f - <<'YAML'

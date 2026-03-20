@@ -34,6 +34,7 @@ resource "null_resource" "kind_cluster" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       # Write config
@@ -66,6 +67,7 @@ resource "null_resource" "wait_for_nodes" {
   depends_on = [null_resource.kind_cluster]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       echo "Waiting for Kind nodes to be Ready..."

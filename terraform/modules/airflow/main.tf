@@ -16,6 +16,7 @@ resource "null_resource" "airflow_image" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       echo "Building custom Airflow image..."
@@ -32,6 +33,7 @@ resource "null_resource" "airflow_db_init" {
   depends_on = [kubernetes_namespace.airflow, null_resource.airflow_image]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       # Create airflow database and user in PostgreSQL

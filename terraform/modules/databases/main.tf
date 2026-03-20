@@ -118,6 +118,7 @@ resource "kubernetes_service" "postgres" {
 # Secret created via kubectl — placeholder in manifest, actual value injected at deploy.
 resource "null_resource" "postgres_secret" {
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       kubectl create secret generic orderflow-postgres-secret \
@@ -135,6 +136,7 @@ resource "null_resource" "postgres_schema" {
   depends_on = [kubernetes_deployment.postgres, null_resource.postgres_secret]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       echo "Waiting for PostgreSQL to be ready..."
@@ -213,6 +215,7 @@ resource "kubernetes_persistent_volume_claim" "mongodb" {
 
 resource "null_resource" "mongodb_secret" {
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       kubectl create secret generic orderflow-mongo-secret \

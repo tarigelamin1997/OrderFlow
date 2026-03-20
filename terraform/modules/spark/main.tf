@@ -35,6 +35,7 @@ resource "helm_release" "spark_operator" {
 
 resource "null_resource" "minio_secret" {
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       kubectl create secret generic orderflow-minio-secret \
@@ -176,6 +177,7 @@ resource "null_resource" "minio_buckets" {
   depends_on = [kubernetes_deployment.minio]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       set -euo pipefail
       echo "Waiting for MinIO to be ready..."
