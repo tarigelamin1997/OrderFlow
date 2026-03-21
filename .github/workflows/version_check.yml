@@ -32,10 +32,10 @@ jobs:
       - name: Check Python environment conflicts (dry-run)
         run: |
           pip install --dry-run \
-            dbt-core==1.8.* \
-            dbt-clickhouse==1.8.* \
-            dbt-spark==1.8.* \
-            great-expectations==0.18.* \
+            dbt-core==1.8.0 \
+            dbt-clickhouse==1.8.4 \
+            dbt-spark==1.8.0 \
+            great-expectations==0.18.21 \
             apache-airflow==2.10.* \
             apache-airflow-providers-cncf-kubernetes \
             apache-airflow-providers-openlineage \
