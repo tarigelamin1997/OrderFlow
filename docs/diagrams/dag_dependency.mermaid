@@ -1,0 +1,48 @@
+graph TD
+    %% ── DAG Definitions ──
+    DAG1["orderflow_batch_ingestion<br/>@hourly<br/>Submits 3 SparkApplication CRDs:<br/>restaurant_revenue_batch<br/>driver_features_batch<br/>demand_zone_batch"]
+
+    DAG2["orderflow_dbt_clickhouse<br/>@daily<br/>dbt run → dbt snapshot → dbt test"]
+
+    DAG3["orderflow_dbt_clickhouse_staging<br/>manual trigger<br/>Staging promotion<br/>(dbt run --target staging)"]
+
+    DAG4["orderflow_dbt_spark<br/>placeholder — skipped<br/>(Kind limitation)"]
+
+    DAG5["orderflow_delta_optimize<br/>placeholder — skipped<br/>(Kind limitation)"]
+
+    DAG6["orderflow_quality_gate<br/>@daily<br/>Great Expectations quality checks"]
+
+    DAG7["orderflow_schema_drift<br/>@daily<br/>Schema drift detection"]
+
+    DAG8["orderflow_pii_audit<br/>@weekly<br/>PII audit log generation"]
+
+    %% ── Dependencies ──
+    DAG1 -->|"waits for batch ingestion<br/>to complete"| DAG2
+
+    DAG2 -->|"optional: staging promotion<br/>after dbt success"| DAG3
+
+    DAG2 -->|"quality checks run<br/>after dbt completes"| DAG6
+
+    %% ── Independent DAGs ──
+    DAG7 -.-|"independent — @daily"| SCHEDULE_DAILY
+    DAG8 -.-|"independent — @weekly"| SCHEDULE_WEEKLY
+
+    SCHEDULE_DAILY["Daily Schedule"]
+    SCHEDULE_WEEKLY["Weekly Schedule"]
+
+    %% ── Skipped DAGs (no connections) ──
+    DAG4 -.-|"disabled"| SKIPPED
+    DAG5 -.-|"disabled"| SKIPPED
+    SKIPPED["Skipped — Kind cluster limitation"]
+
+    %% ── Styles ──
+    classDef active fill:#27ae60,stroke:#1e8449,color:#fff
+    classDef manual fill:#3498db,stroke:#2980b9,color:#fff
+    classDef skipped fill:#95a5a6,stroke:#7f8c8d,color:#fff,stroke-dasharray: 5 5
+    classDef schedule fill:#f39c12,stroke:#d68910,color:#fff
+    classDef dependency fill:#e74c3c,stroke:#c0392b,color:#fff
+
+    class DAG1,DAG2,DAG6,DAG7,DAG8 active
+    class DAG3 manual
+    class DAG4,DAG5,SKIPPED skipped
+    class SCHEDULE_DAILY,SCHEDULE_WEEKLY schedule

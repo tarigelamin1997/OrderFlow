@@ -1,0 +1,6 @@
+version: 2
+secret:
+  show_secrets: false
+  ignored_paths:
+    - "**/*.md"
+    - "stress/results/"

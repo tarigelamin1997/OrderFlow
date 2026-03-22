@@ -60,3 +60,6 @@ connect.ps1
 
 # Claude Code local settings (project settings.json stays tracked)
 .claude/settings.local.json
+
+# Stress test results (Phase 8)
+stress/results/

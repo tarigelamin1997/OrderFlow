@@ -1,0 +1,119 @@
+graph TD
+    %% ── Source Databases ──
+    subgraph Sources["Source Databases"]
+        PG_users["PostgreSQL<br/>users"]
+        PG_orders["PostgreSQL<br/>orders"]
+        PG_restaurants["PostgreSQL<br/>restaurants"]
+        PG_drivers["PostgreSQL<br/>drivers"]
+        MONGO_events["MongoDB<br/>user_events"]
+        MONGO_delivery["MongoDB<br/>delivery_updates"]
+    end
+
+    %% ── CDC Layer ──
+    subgraph CDC["Debezium CDC Connectors (2.7.0)"]
+        DBZ_PG["Debezium PostgreSQL Connector"]
+        DBZ_MONGO["Debezium MongoDB Connector"]
+    end
+
+    PG_users --> DBZ_PG
+    PG_orders --> DBZ_PG
+    PG_restaurants --> DBZ_PG
+    PG_drivers --> DBZ_PG
+    MONGO_events --> DBZ_MONGO
+    MONGO_delivery --> DBZ_MONGO
+
+    %% ── Kafka ──
+    subgraph KafkaCluster["Kafka (3.7.0 — KRaft, Strimzi 0.40.0)"]
+        TOPICS["Kafka Topics<br/>orderflow.public.users<br/>orderflow.public.orders<br/>orderflow.public.restaurants<br/>orderflow.public.drivers<br/>orderflow.user_events<br/>orderflow.delivery_updates"]
+    end
+
+    DBZ_PG --> TOPICS
+    DBZ_MONGO --> TOPICS
+
+    SR["Schema Registry (7.6.1)"]
+    TOPICS --- SR
+
+    %% ── Path A: Streaming (ClickHouse direct) ──
+    subgraph PathA["Path A — Streaming Ingestion"]
+        subgraph CH_Bronze["ClickHouse Bronze"]
+            KAFKA_ENG["Kafka Engine Tables"]
+            MVS_BRONZE["Materialized Views"]
+            RAW_TABLES["MergeTree Raw Tables"]
+        end
+        KAFKA_ENG --> MVS_BRONZE --> RAW_TABLES
+
+        subgraph CH_Silver["ClickHouse Silver"]
+            SILVER_TABLES["ReplacingMergeTree<br/>orders, users, restaurants,<br/>drivers, user_events,<br/>delivery_updates"]
+        end
+        RAW_TABLES --> SILVER_TABLES
+
+        subgraph CH_Gold_Stream["ClickHouse Gold (Streaming)"]
+            GOLD_STREAM["SummingMergeTree / AggregatingMergeTree<br/>restaurant_revenue_daily<br/>driver_performance_daily<br/>order_metrics_by_status"]
+        end
+        SILVER_TABLES --> GOLD_STREAM
+    end
+
+    TOPICS --> KAFKA_ENG
+
+    %% ── Path B: Batch (Spark + Delta Lake) ──
+    subgraph PathB["Path B — Batch Ingestion"]
+        S3_SINK["Kafka S3 Sink Connector"]
+        MINIO["MinIO (S3-compatible)"]
+        SPARK["Spark 3.5.1"]
+        DELTA_SILVER["Delta Lake Silver"]
+        FEATURES["Feature Tables"]
+        CH_GOLD_BATCH["ClickHouse Gold (Batch)<br/>restaurant_revenue_batch<br/>driver_features_batch<br/>demand_zone_batch"]
+    end
+
+    TOPICS --> S3_SINK --> MINIO --> SPARK
+    SPARK --> DELTA_SILVER --> FEATURES --> CH_GOLD_BATCH
+
+    %% ── dbt Layer ──
+    subgraph DBT["dbt-clickhouse (1.8.0)"]
+        DBT_STG["Staging Views"]
+        DBT_INT["Intermediate Views"]
+        DBT_MARTS["Mart Tables (dbt_dev__gold)<br/>mart_restaurant_revenue<br/>mart_driver_kpis<br/>mart_order_funnel<br/>mart_user_cohorts<br/>mart_demand_zone"]
+    end
+
+    SILVER_TABLES --> DBT_STG --> DBT_INT --> DBT_MARTS
+
+    %% ── Orchestration ──
+    subgraph Orchestration["Airflow (2.10.0)"]
+        AF["Airflow Scheduler + Webserver"]
+    end
+
+    AF -->|"submits SparkApplication CRDs"| SPARK
+    AF -->|"triggers dbt run / test"| DBT_STG
+
+    %% ── Observability ──
+    subgraph Observability["Observability Stack"]
+        GRAFANA["Grafana Dashboards"]
+        MARQUEZ["Marquez (0.48.0)<br/>OpenLineage"]
+        TELEMETRY["Airflow Telemetry Listener"]
+    end
+
+    GOLD_STREAM --> GRAFANA
+    CH_GOLD_BATCH --> GRAFANA
+    DBT_MARTS --> GRAFANA
+
+    AF --> TELEMETRY --> MARQUEZ
+    DBT_STG -.->|"OpenLineage events"| MARQUEZ
+
+    %% ── Styles ──
+    classDef source fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef cdc fill:#e67e22,stroke:#b35c00,color:#fff
+    classDef kafka fill:#8e44ad,stroke:#6c3483,color:#fff
+    classDef clickhouse fill:#f1c40f,stroke:#b7950b,color:#333
+    classDef batch fill:#27ae60,stroke:#1e8449,color:#fff
+    classDef dbt fill:#e74c3c,stroke:#c0392b,color:#fff
+    classDef airflow fill:#1abc9c,stroke:#16a085,color:#fff
+    classDef obs fill:#95a5a6,stroke:#7f8c8d,color:#fff
+
+    class PG_users,PG_orders,PG_restaurants,PG_drivers,MONGO_events,MONGO_delivery source
+    class DBZ_PG,DBZ_MONGO cdc
+    class TOPICS,SR kafka
+    class KAFKA_ENG,MVS_BRONZE,RAW_TABLES,SILVER_TABLES,GOLD_STREAM clickhouse
+    class S3_SINK,MINIO,SPARK,DELTA_SILVER,FEATURES,CH_GOLD_BATCH batch
+    class DBT_STG,DBT_INT,DBT_MARTS dbt
+    class AF airflow
+    class GRAFANA,MARQUEZ,TELEMETRY obs

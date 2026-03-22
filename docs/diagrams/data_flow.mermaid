@@ -1,0 +1,130 @@
+graph LR
+    %% ── CDC Sources ──
+    subgraph CDC["CDC Sources"]
+        PG["PostgreSQL CDC<br/>(Debezium)"]
+        MONGO["MongoDB CDC<br/>(Debezium)"]
+    end
+
+    %% ── Bronze Layer ──
+    subgraph Bronze["Bronze Layer (ClickHouse)"]
+        subgraph KafkaEngines["Kafka Engine Tables (6)"]
+            KE_orders["kafka_orders"]
+            KE_users["kafka_users"]
+            KE_restaurants["kafka_restaurants"]
+            KE_drivers["kafka_drivers"]
+            KE_user_events["kafka_user_events"]
+            KE_delivery["kafka_delivery_updates"]
+        end
+
+        subgraph MVs["Materialized Views (6)"]
+            MV_orders["mv_orders"]
+            MV_users["mv_users"]
+            MV_restaurants["mv_restaurants"]
+            MV_drivers["mv_drivers"]
+            MV_user_events["mv_user_events"]
+            MV_delivery["mv_delivery_updates"]
+        end
+
+        subgraph RawTables["MergeTree Raw Tables (6)"]
+            RAW_orders["raw_orders"]
+            RAW_users["raw_users"]
+            RAW_restaurants["raw_restaurants"]
+            RAW_drivers["raw_drivers"]
+            RAW_user_events["raw_user_events"]
+            RAW_delivery["raw_delivery_updates"]
+        end
+    end
+
+    PG --> KE_orders & KE_users & KE_restaurants & KE_drivers
+    MONGO --> KE_user_events & KE_delivery
+
+    KE_orders --> MV_orders --> RAW_orders
+    KE_users --> MV_users --> RAW_users
+    KE_restaurants --> MV_restaurants --> RAW_restaurants
+    KE_drivers --> MV_drivers --> RAW_drivers
+    KE_user_events --> MV_user_events --> RAW_user_events
+    KE_delivery --> MV_delivery --> RAW_delivery
+
+    %% ── Silver Layer ──
+    subgraph Silver["Silver Layer (ClickHouse — ReplacingMergeTree)"]
+        S_orders["silver.orders"]
+        S_users["silver.users"]
+        S_restaurants["silver.restaurants"]
+        S_drivers["silver.drivers"]
+        S_user_events["silver.user_events"]
+        S_delivery["silver.delivery_updates"]
+    end
+
+    RAW_orders --> S_orders
+    RAW_users --> S_users
+    RAW_restaurants --> S_restaurants
+    RAW_drivers --> S_drivers
+    RAW_user_events --> S_user_events
+    RAW_delivery --> S_delivery
+
+    %% ── Gold Streaming Layer ──
+    subgraph GoldStream["Gold Layer — Streaming"]
+        GS_revenue["gold.restaurant_revenue_daily<br/>(SummingMergeTree)"]
+        GS_driver["gold.driver_performance_daily<br/>(AggregatingMergeTree)"]
+        GS_metrics["gold.order_metrics_by_status<br/>(SummingMergeTree)"]
+    end
+
+    S_orders --> GS_revenue
+    S_orders --> GS_metrics
+    S_drivers --> GS_driver
+
+    %% ── Gold Batch Layer ──
+    subgraph GoldBatch["Gold Layer — Batch (Spark + Delta Lake)"]
+        GB_revenue["gold.restaurant_revenue_batch"]
+        GB_features["gold.driver_features_batch"]
+        GB_demand["gold.demand_zone_batch"]
+    end
+
+    S_orders -.->|"S3 Sink → MinIO → Spark"| GB_revenue
+    S_drivers -.->|"S3 Sink → MinIO → Spark"| GB_features
+    S_orders -.->|"S3 Sink → MinIO → Spark"| GB_demand
+
+    %% ── dbt Marts ──
+    subgraph DBT["dbt Marts (dbt_dev__gold)"]
+        M_revenue["mart_restaurant_revenue"]
+        M_driver["mart_driver_kpis"]
+        M_funnel["mart_order_funnel"]
+        M_cohorts["mart_user_cohorts"]
+        M_demand["mart_demand_zone"]
+    end
+
+    S_orders --> M_revenue
+    S_restaurants --> M_revenue
+    S_drivers --> M_driver
+    S_orders --> M_funnel
+    S_users --> M_cohorts
+    S_user_events --> M_cohorts
+    S_orders --> M_demand
+
+    %% ── Operational / Audit Tables ──
+    subgraph Audit["Operational & Audit Tables (gold)"]
+        PII["gold.pii_audit_log"]
+        DAG_LOG["gold.dag_run_log"]
+        DRIFT["gold.schema_drift_log"]
+    end
+
+    S_users -.->|"PII audit DAG"| PII
+    GoldStream -.->|"Airflow telemetry"| DAG_LOG
+    S_orders -.->|"Schema drift DAG"| DRIFT
+
+    %% ── Styles ──
+    classDef cdc fill:#e67e22,stroke:#b35c00,color:#fff
+    classDef bronze fill:#cd7f32,stroke:#8b5a2b,color:#fff
+    classDef silver fill:#c0c0c0,stroke:#808080,color:#333
+    classDef goldstream fill:#ffd700,stroke:#b8960f,color:#333
+    classDef goldbatch fill:#daa520,stroke:#8b6914,color:#fff
+    classDef dbt fill:#e74c3c,stroke:#c0392b,color:#fff
+    classDef audit fill:#95a5a6,stroke:#7f8c8d,color:#fff
+
+    class PG,MONGO cdc
+    class KE_orders,KE_users,KE_restaurants,KE_drivers,KE_user_events,KE_delivery,MV_orders,MV_users,MV_restaurants,MV_drivers,MV_user_events,MV_delivery,RAW_orders,RAW_users,RAW_restaurants,RAW_drivers,RAW_user_events,RAW_delivery bronze
+    class S_orders,S_users,S_restaurants,S_drivers,S_user_events,S_delivery silver
+    class GS_revenue,GS_driver,GS_metrics goldstream
+    class GB_revenue,GB_features,GB_demand goldbatch
+    class M_revenue,M_driver,M_funnel,M_cohorts,M_demand dbt
+    class PII,DAG_LOG,DRIFT audit

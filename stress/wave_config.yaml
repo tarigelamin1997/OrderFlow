@@ -1,0 +1,75 @@
+waves:
+  - id: 1
+    description: "Baseline verification"
+    orders: 0
+    user_events: 0
+    delivery_updates: 0
+
+  - id: 2
+    description: "Small increment"
+    orders: 5000
+    user_events: 3000
+    delivery_updates: 1500
+
+  - id: 3
+    description: "Medium load"
+    orders: 10000
+    user_events: 6000
+    delivery_updates: 3000
+
+  - id: 4
+    description: "Double baseline"
+    orders: 15000
+    user_events: 9000
+    delivery_updates: 4500
+
+  - id: 5
+    description: "Heavy batch"
+    orders: 20000
+    user_events: 12000
+    delivery_updates: 6000
+
+  - id: 6
+    description: "100K threshold"
+    orders: 10000
+    user_events: 5000
+    delivery_updates: 2500
+
+  - id: 7
+    description: "Sustained load"
+    orders: 10000
+    user_events: 5000
+    delivery_updates: 2500
+
+  - id: 8
+    description: "Burst insert"
+    orders: 15000
+    user_events: 7500
+    delivery_updates: 3750
+    burst: true
+
+  - id: 9
+    description: "Update storm"
+    orders: 0
+    updates_only: true
+    update_pct: 0.2
+
+  - id: 10
+    description: "Delete wave"
+    orders: 0
+    deletes_only: true
+    delete_pct: 0.05
+
+  - id: 11
+    description: "Mixed workload"
+    orders: 5000
+    user_events: 3000
+    delivery_updates: 1500
+    updates_only: false
+    update_pct: 0.1
+
+  - id: 12
+    description: "Final measurement"
+    orders: 0
+    user_events: 0
+    delivery_updates: 0
