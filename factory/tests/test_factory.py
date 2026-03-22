@@ -38,7 +38,7 @@ def test_pii_columns_trigger_hashpii_transform():
     factory = PipelineFactory("factory/sources/payments.yaml")
     factory.generate_debezium_connector()
     content = (Path("factory/output/payments/debezium_connector.yaml")).read_text()
-    assert "hashpii" in content
+    assert "HashPII" in content
     assert "card_last_four" in content
 
 

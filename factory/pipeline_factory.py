@@ -506,23 +506,24 @@ class PipelineFactory:
         engine = silver_cfg.get("engine", "ReplacingMergeTree")
         is_append_only = engine == "MergeTree"
 
-        # Build SELECT columns
+        # Build SELECT columns using Silver column names (clean, no after_ prefix)
         select_lines = []
         for col in columns:
-            flat_name = _flat_column_name(col["name"])
-            alias = col.get("alias", col["name"])
-            if flat_name != alias:
-                select_lines.append(f"    {flat_name} AS {alias}")
+            name = col["name"]
+            if col.get("pii"):
+                select_lines.append(f"    {name}_hash")
+            elif col.get("is_timestamp"):
+                select_lines.append(f"    {name}_dt")
             else:
-                select_lines.append(f"    {flat_name}")
+                select_lines.append(f"    {name}")
 
-        # Always include metadata
-        select_lines.extend([
-            "    op",
-            "    source_lsn",
-            "    _bronze_ts",
-            "    _silver_at",
-        ])
+        select_lines.append("    is_deleted")
+        has_updated_at = any(
+            c["name"] == "updated_at" and c.get("is_timestamp")
+            for c in columns
+        )
+        if not has_updated_at:
+            select_lines.append("    updated_at_dt")
 
         final_kw = "" if is_append_only else " FINAL"
         where_clause = "" if is_append_only else "\nWHERE is_deleted = 0"
@@ -761,9 +762,11 @@ class PipelineFactory:
 
 def main() -> None:
     """CLI: python pipeline_factory.py <source.yaml>"""
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or sys.argv[1] in ("--help", "-h"):
         print("Usage: python pipeline_factory.py <source.yaml>")
         print("       python pipeline_factory.py factory/sources/payments.yaml")
+        if "--help" in sys.argv or "-h" in sys.argv:
+            sys.exit(0)
         sys.exit(1)
 
     source_yaml = sys.argv[1]
