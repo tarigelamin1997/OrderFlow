@@ -63,3 +63,7 @@ connect.ps1
 
 # Stress test results (Phase 8)
 stress/results/
+
+# Factory generated output (Phase 9) — except payments demo
+factory/output/*/
+!factory/output/payments/

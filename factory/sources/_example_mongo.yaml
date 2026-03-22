@@ -1,0 +1,60 @@
+# OrderFlow Pipeline Factory — Example MongoDB Source
+# Copy this file, rename to <entity>.yaml, and customise.
+#
+# MongoDB differences from PostgreSQL:
+#   - type: mongodb (not postgres)
+#   - connection uses collection (not table/schema)
+#   - No Avro — uses JSONEachRow format in ClickHouse Kafka engine
+#   - No PII hashing transform (MongoDB connector uses ExtractNewRecordState)
+#   - Typically append-only (MergeTree), not ReplacingMergeTree
+
+source:
+  name: notifications
+  type: mongodb
+  connection:
+    database: orderflow
+    collection: notifications
+    server_name: orderflow-mongo
+
+  columns:
+    - name: _id
+      type: objectId
+      nullable: false
+      alias: notification_id
+    - name: user_id
+      type: string
+      nullable: false
+    - name: type
+      type: string
+      nullable: false
+    - name: channel
+      type: string
+      nullable: false
+    - name: message
+      type: string
+      nullable: true
+    - name: status
+      type: string
+      nullable: false
+    - name: sent_at
+      type: datetime
+      nullable: true
+    - name: created_at
+      type: datetime
+      nullable: false
+
+bronze:
+  topic: orderflow-mongo.orderflow.notifications
+  order_by: "after__id"
+  ttl_days: 30
+
+silver:
+  engine: MergeTree
+  order_by: "after__id"
+  partition_by: null
+
+dag:
+  schedule: "@hourly"
+  owner: orderflow
+  retries: 2
+  retry_delay_minutes: 5

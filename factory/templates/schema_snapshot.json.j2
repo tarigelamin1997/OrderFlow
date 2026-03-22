@@ -1,0 +1,18 @@
+{
+  "entity": "{{ config.source.name }}",
+  "source_type": "{{ config.source.type }}",
+  "generated_at": "{{ '{{' }} now {{ '}}' }}",
+  "columns": [
+{% for col in config.columns %}
+    {
+      "name": "{{ col.name }}",
+      "source_type": "{{ col.source_type }}",
+      "clickhouse_type": "{{ col.clickhouse_type }}"{% if col.get('pii') %},
+      "pii": true{% endif %}{% if col.get('is_key') %},
+      "is_key": true{% endif %}
+
+    }{% if not loop.last %},{% endif %}
+
+{% endfor %}
+  ]
+}

@@ -276,3 +276,30 @@ run-phase8: stress-full secret-audit
 
 verify-phase8:
 	bash scripts/verify_phase8.sh
+
+# -- Phase 9 — Self-Service Pipeline Factory ------------------------------------
+
+.PHONY: generate-pipeline deploy-pipeline test-factory demo-payments run-phase9 verify-phase9
+
+generate-pipeline:
+	python3 factory/pipeline_factory.py --source $(SOURCE)
+	@echo "Pipeline generated for $(SOURCE)"
+
+deploy-pipeline:
+	bash factory/output/$(ENTITY)/apply.sh
+	@echo "Pipeline deployed for $(ENTITY)"
+
+test-factory:
+	python3 -m pytest factory/tests/ -v
+	@echo "Factory tests passed"
+
+demo-payments:
+	PGPASSWORD=orderflow_pg_pass psql -h localhost -p 30432 -U orderflow -d orderflow < factory/sources/payments_seed.sql
+	make generate-pipeline SOURCE=factory/sources/payments.yaml
+	bash factory/output/payments/apply.sh
+	@echo "Payments demo pipeline deployed"
+
+run-phase9: test-factory demo-payments verify-phase9
+
+verify-phase9:
+	bash scripts/verify_phase9.sh

@@ -1,0 +1,61 @@
+# OrderFlow Pipeline Factory — Payments Entity (Demo)
+# This is the live payments pipeline definition.
+# Generated from _example_postgres.yaml as the Phase 9 demo entity.
+#
+# Column flat naming:
+#   All columns arrive in ClickHouse bronze as after_<column_name>
+#   due to the Flatten SMT applied by Debezium.
+
+source:
+  name: payments
+  type: postgres
+  connection:
+    database: orderflow
+    schema: public
+    table: payments
+    server_name: orderflow
+
+  columns:
+    - name: id
+      type: serial
+      nullable: false
+      alias: payment_id
+    - name: order_id
+      type: integer
+      nullable: false
+    - name: amount
+      type: numeric
+      nullable: false
+    - name: method
+      type: varchar
+      nullable: false
+    - name: card_last_four
+      type: varchar
+      nullable: true
+      pii: true
+    - name: status
+      type: varchar
+      nullable: false
+    - name: created_at
+      type: timestamptz
+      nullable: false
+    - name: updated_at
+      type: timestamptz
+      nullable: false
+
+bronze:
+  topic: orderflow.public.payments
+  order_by: after_id
+  ttl_days: 30
+
+silver:
+  engine: ReplacingMergeTree
+  version_column: source_ts_ms
+  order_by: after_id
+  partition_by: null
+
+dag:
+  schedule: "@hourly"
+  owner: orderflow
+  retries: 2
+  retry_delay_minutes: 5
