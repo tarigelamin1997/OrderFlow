@@ -42,12 +42,12 @@ PG_PARAMS = {
     "host": "localhost",
     "port": 30432,
     "user": "orderflow",
-    "password": "orderflow",
+    "password": "orderflow_pg_pass",
     "dbname": "orderflow",
 }
 
 # MongoDB connection parameters (no auth — Phase 1 Deviation 9)
-MONGO_URI = "mongodb://localhost:30017"
+MONGO_URI = "mongodb://localhost:30017/?directConnection=true"
 MONGO_DB = "foodtech"
 
 # Batch size for regular (non-burst) inserts

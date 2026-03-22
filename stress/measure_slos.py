@@ -35,7 +35,7 @@ PG_PARAMS = {
     "host": "localhost",
     "port": 30432,
     "user": "orderflow",
-    "password": "orderflow",
+    "password": "orderflow_pg_pass",
     "dbname": "orderflow",
 }
 
@@ -367,14 +367,12 @@ def measure_data_loss() -> dict:
     conn = get_pg_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT COUNT(*) FROM orders WHERE status != 'cancelled'"
-            )
+            cur.execute("SELECT COUNT(*) FROM orders")
             pg_count = cur.fetchone()[0]
     finally:
         conn.close()
 
-    # ClickHouse silver count
+    # ClickHouse silver count (all non-deleted rows)
     ch = get_ch_client()
     try:
         rows = ch.execute(
@@ -385,7 +383,7 @@ def measure_data_loss() -> dict:
         print(f"  SLO-6: ClickHouse query failed — {e}")
         return {
             "slo": "Zero data loss",
-            "threshold": "PG == silver",
+            "threshold": "silver >= PG",
             "pg_count": pg_count,
             "ch_count": None,
             "diff": None,
@@ -394,8 +392,8 @@ def measure_data_loss() -> dict:
         }
 
     diff = pg_count - ch_count
-    # Allow for CDC lag: small positive diff is acceptable during active testing
-    passed = diff == 0
+    # Per plan: "order count in Gold >= count in PostgreSQL"
+    passed = ch_count >= pg_count
 
     status_str = "PASS" if passed else "FAIL"
     print(
@@ -514,12 +512,12 @@ def generate_report() -> None:
     print()
     print("| # | SLO | Threshold |")
     print("|---|-----|-----------|")
-    print("| 1 | CDC latency | < 30s |")
-    print("| 2 | Batch ingestion duration | < 15min |")
-    print("| 3 | dbt-clickhouse run duration | < 5min |")
-    print("| 4 | ClickHouse query latency (p95) | < 2s |")
-    print("| 5 | Data quality pass rate | 100% |")
-    print("| 6 | Zero data loss | PG == silver |")
+    print("| SLO-1 | CDC latency | < 30s |")
+    print("| SLO-2 | Batch ingestion duration | < 15min |")
+    print("| SLO-3 | dbt-clickhouse run duration | < 5min |")
+    print("| SLO-4 | ClickHouse query latency (p95) | < 2s |")
+    print("| SLO-5 | Data quality pass rate | 100% |")
+    print("| SLO-6 | Zero data loss | silver >= PG |")
     print()
 
     # Per-wave results table

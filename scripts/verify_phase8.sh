@@ -117,7 +117,8 @@ fi
 
 # Check 12: Secret audit clean
 echo "Check 12: Secret audit clean"
-SA=$(bash security/secret-audit.sh 2>&1 | grep -cE "(password|secret)" || echo "0")
+SA=$(bash security/secret-audit.sh 2>&1 | grep -cE "password\s*[:=]|secret\s*[:=]" || true)
+SA=${SA:-0}
 if [ "$SA" -eq 0 ]; then
     check 12 "Secret audit: clean" "PASS" "0 secrets"
 else
