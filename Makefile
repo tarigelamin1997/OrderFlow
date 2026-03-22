@@ -282,7 +282,7 @@ verify-phase8:
 .PHONY: generate-pipeline deploy-pipeline test-factory demo-payments run-phase9 verify-phase9
 
 generate-pipeline:
-	python3 factory/pipeline_factory.py --source $(SOURCE)
+	python3 factory/pipeline_factory.py $(SOURCE)
 	@echo "Pipeline generated for $(SOURCE)"
 
 deploy-pipeline:

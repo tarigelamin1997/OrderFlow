@@ -19,7 +19,7 @@ spec:
   config:
     database.hostname: postgres.databases.svc.cluster.local
     database.port: "5432"
-    database.user: orderflow
+    database.user: debezium
     database.password: debezium_pg_pass
     database.dbname: {{ config.source.connection.database }}
     database.server.name: {{ config.source.connection.server_name }}
@@ -28,17 +28,17 @@ spec:
     plugin.name: pgoutput
     slot.name: {{ config.source.name }}_slot
     publication.name: {{ config.source.name }}_pub
+    publication.autocreate.mode: filtered
     key.converter: io.confluent.connect.avro.AvroConverter
     key.converter.schema.registry.url: http://schema-registry.kafka.svc.cluster.local:8081
     value.converter: io.confluent.connect.avro.AvroConverter
     value.converter.schema.registry.url: http://schema-registry.kafka.svc.cluster.local:8081
     decimal.handling.mode: double
-    transforms: flatten{% if pii_columns %},hashpii{% endif %}
-
-    transforms.flatten.type: org.apache.kafka.connect.transforms.Flatten$Value
-    transforms.flatten.delimiter: "_"
+    transforms: {% if pii_columns %}HashPII,{% endif %}Flatten
 {% if pii_columns %}
-    transforms.hashpii.type: com.orderflow.connect.transforms.HashPII
-    transforms.hashpii.fields: {{ pii_columns | join(',') }}
-    transforms.hashpii.algorithm: SHA-256
+    transforms.HashPII.type: com.orderflow.connect.transforms.HashPII
+    transforms.HashPII.field_path: after
+    transforms.HashPII.fields: {{ pii_columns | join(',') }}
 {% endif %}
+    transforms.Flatten.type: org.apache.kafka.connect.transforms.Flatten$Value
+    transforms.Flatten.delimiter: "_"

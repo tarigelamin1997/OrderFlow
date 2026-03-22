@@ -76,6 +76,8 @@ def _ch_type(source_type: str) -> str:
         "double precision": "Float64",
         "timestamp": "String",
         "timestamptz": "String",
+        "timestamp with time zone": "String",
+        "timestamp without time zone": "String",
         "date": "String",
         "json": "String",
         "jsonb": "String",
@@ -91,7 +93,9 @@ def _ch_type(source_type: str) -> str:
         "object": "String",
         "array": "String",
     }
-    return mapping.get(source_type.lower(), "String")
+    # Strip parenthetical precision (e.g., "numeric(10,2)" → "numeric")
+    base_type = source_type.split("(")[0].strip().lower()
+    return mapping.get(base_type, "String")
 
 
 def _ch_type_nullable(source_type: str, nullable: bool) -> str:
@@ -136,6 +140,12 @@ class PipelineFactory:
         with open(self.source_path, "r", encoding="utf-8") as f:
             self.config: Dict[str, Any] = yaml.safe_load(f)
 
+        # Normalize: columns can be at top level (plan schema) or under source
+        if "columns" in self.config and "columns" not in self.config.get("source", {}):
+            self.config["source"]["columns"] = self.config["columns"]
+        elif "columns" not in self.config and "columns" in self.config.get("source", {}):
+            self.config["columns"] = self.config["source"]["columns"]
+
         self._validate_config()
 
         self.entity = self.config["source"]["name"]
@@ -156,7 +166,7 @@ class PipelineFactory:
 
     def _validate_config(self) -> None:
         """Validate required keys in the YAML source definition."""
-        required_top = ["source", "bronze", "silver"]
+        required_top = ["source", "silver"]
         for key in required_top:
             if key not in self.config:
                 raise ValueError(f"Missing required top-level key: '{key}'")
@@ -177,11 +187,13 @@ class PipelineFactory:
 
         # Validate column definitions
         for col in src["columns"]:
-            for req in ["name", "type"]:
-                if req not in col:
-                    raise ValueError(
-                        f"Column missing required field '{req}': {col}"
-                    )
+            if "name" not in col:
+                raise ValueError(f"Column missing required field 'name': {col}")
+            # Accept either 'type' or 'source_type' for compatibility
+            if "type" not in col and "source_type" in col:
+                col["type"] = col["source_type"]
+            elif "type" not in col:
+                raise ValueError(f"Column missing 'type' or 'source_type': {col}")
 
     # ------------------------------------------------------------------
     # Connector name validation
@@ -245,8 +257,9 @@ class PipelineFactory:
         else:
             template_name = "debezium_mongo.json.j2"
 
+        # PII column names WITHOUT after_ prefix — HashPII runs BEFORE Flatten
         pii_columns = [
-            _flat_column_name(col["name"])
+            col["name"]
             for col in self.config["source"]["columns"]
             if col.get("pii", False)
         ]
@@ -268,11 +281,12 @@ class PipelineFactory:
     def generate_clickhouse_bronze(self) -> None:
         """Generate ClickHouse Bronze DDL: Kafka engine, raw table, MV."""
         src = self.config["source"]
-        bronze_cfg = self.config["bronze"]
+        bronze_cfg = self.config.get("bronze", {})
         columns = src["columns"]
         entity = self.entity
+        conn = src["connection"]
 
-        topic = bronze_cfg.get("topic", f"{src['connection'].get('server_name', entity)}.{src['connection'].get('schema', 'public')}.{src['connection'].get('table', entity)}")
+        topic = bronze_cfg.get("topic", f"{conn.get('server_name', entity)}.{conn.get('schema', 'public')}.{conn.get('table', entity)}")
 
         # -- Column definitions for bronze (flat naming) --
         kafka_cols = []
@@ -290,7 +304,7 @@ class PipelineFactory:
         cdc_meta_kafka = [
             "    op String",
             "    source_ts_ms Nullable(Int64)",
-            "    source_lsn Nullable(String)",
+            "    source_lsn Nullable(Int64)",
         ]
         cdc_meta_raw = list(cdc_meta_kafka) + [
             "    _bronze_ts DateTime DEFAULT now()",
@@ -306,7 +320,7 @@ class PipelineFactory:
         if self.source_type == "postgres":
             kafka_format = "AvroConfluent"
             kafka_settings = [
-                f"    kafka_broker_list = 'orderflow-kafka-bootstrap.kafka.svc.cluster.local:9092'",
+                f"    kafka_broker_list = 'orderflow-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092'",
                 f"    kafka_topic_list = '{topic}'",
                 f"    kafka_group_name = 'clickhouse_bronze_{entity}'",
                 f"    kafka_format = '{kafka_format}'",
@@ -315,7 +329,7 @@ class PipelineFactory:
         else:
             kafka_format = "JSONEachRow"
             kafka_settings = [
-                f"    kafka_broker_list = 'orderflow-kafka-bootstrap.kafka.svc.cluster.local:9092'",
+                f"    kafka_broker_list = 'orderflow-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092'",
                 f"    kafka_topic_list = '{topic}'",
                 f"    kafka_group_name = 'clickhouse_bronze_{entity}'",
                 f"    kafka_format = '{kafka_format}'",
@@ -348,7 +362,8 @@ class PipelineFactory:
             f")\n"
             f"ENGINE = MergeTree()\n"
             f"ORDER BY ({order_by})\n"
-            f"TTL _bronze_ts + INTERVAL {bronze_cfg.get('ttl_days', 30)} DAY;\n"
+            f"TTL _bronze_ts + INTERVAL {bronze_cfg.get('ttl_days', 30)} DAY\n"
+            f"SETTINGS allow_nullable_key = 1;\n"
         )
 
         raw_path = self.output_dir / "clickhouse_bronze_raw.sql"
@@ -376,59 +391,102 @@ class PipelineFactory:
     # ------------------------------------------------------------------
 
     def generate_clickhouse_silver(self) -> None:
-        """Generate ClickHouse Silver table DDL."""
-        src = self.config["source"]
+        """Generate ClickHouse Silver table DDL with clean column names."""
         silver_cfg = self.config["silver"]
-        columns = src["columns"]
+        columns = self.config["columns"]
         entity = self.entity
 
         engine = silver_cfg.get("engine", "ReplacingMergeTree")
-        ver_col = silver_cfg.get("version_column", "source_ts_ms")
-        order_by = silver_cfg.get("order_by", _flat_column_name(columns[0]["name"]))
+        ver_col = silver_cfg.get("version_column", "updated_at_dt")
+        order_by_cols = silver_cfg.get("order_by", [columns[0]["name"]])
+        if isinstance(order_by_cols, str):
+            order_by_cols = [order_by_cols]
         partition_by = silver_cfg.get("partition_by")
 
-        # Silver column definitions
+        # Silver uses clean column names (not after_* Bronze naming)
         silver_cols = []
         for col in columns:
-            flat_name = _flat_column_name(col["name"])
-            nullable = col.get("nullable", True)
-            # Primary key / order-by columns should not be Nullable
-            ch_type = _ch_type_nullable(col["type"], nullable)
-            silver_cols.append(f"    {flat_name} {ch_type}")
+            name = col["name"]
+            ch_type = col.get("clickhouse_type", "String")
+            if col.get("pii"):
+                silver_cols.append(f"    {name}_hash {ch_type}")
+            elif col.get("is_timestamp"):
+                silver_cols.append(f"    {name}_dt DateTime")
+            elif col.get("source_is_decimal"):
+                silver_cols.append(f"    {name} {ch_type}")
+            else:
+                silver_cols.append(f"    {name} {ch_type}")
 
-        # CDC + lineage metadata
-        meta_cols = [
-            "    op String",
-            "    source_ts_ms Nullable(Int64)",
-            "    source_lsn Nullable(String)",
-            "    is_deleted UInt8 DEFAULT 0",
-            "    _bronze_ts DateTime",
-            "    _silver_at DateTime DEFAULT now()",
-        ]
+        silver_cols.append("    is_deleted UInt8 DEFAULT 0")
+        # Only add default updated_at_dt if no timestamp column already creates it
+        has_updated_at = any(
+            c["name"] == "updated_at" and c.get("is_timestamp")
+            for c in columns
+        )
+        if not has_updated_at:
+            silver_cols.append("    updated_at_dt DateTime DEFAULT now()")
 
         # Build engine clause
         if engine == "ReplacingMergeTree":
             engine_clause = f"ENGINE = ReplacingMergeTree({ver_col})"
-        elif engine == "MergeTree":
-            engine_clause = "ENGINE = MergeTree()"
         else:
-            engine_clause = f"ENGINE = {engine}"
+            engine_clause = f"ENGINE = {engine}()"
 
         partition_clause = ""
         if partition_by:
             partition_clause = f"\nPARTITION BY {partition_by}"
+
+        order_by_str = ", ".join(order_by_cols)
 
         silver_ddl = (
             f"-- Auto-generated by OrderFlow Pipeline Factory\n"
             f"-- Entity: {entity} | Silver table\n"
             f"CREATE TABLE IF NOT EXISTS silver.{entity}\n"
             f"(\n"
-            + ",\n".join(silver_cols + meta_cols) + "\n"
+            + ",\n".join(silver_cols) + "\n"
             f")\n"
             f"{engine_clause}\n"
-            f"ORDER BY ({order_by})"
-            f"{partition_clause};\n"
+            f"ORDER BY ({order_by_str})"
+            f"{partition_clause}\n"
+            f"SETTINGS allow_nullable_key = 1, index_granularity = 8192;\n"
         )
+
+        # Build Bronze-to-Silver MV (transforms after_* flat columns to clean Silver)
+        mv_select = []
+        for col in columns:
+            name = col["name"]
+            if col.get("pii"):
+                # PII already hashed by Debezium HashPII SMT
+                mv_select.append(f"    after_{name} AS {name}_hash")
+            elif col.get("is_timestamp"):
+                # Convert ms epoch (Int64) or String to DateTime
+                mv_select.append(
+                    f"    toDateTime(toInt64OrZero(toString(after_{name})) / 1000) AS {name}_dt"
+                )
+            elif col.get("source_is_decimal"):
+                mv_select.append(f"    toDecimal64(after_{name}, 2) AS {name}")
+            else:
+                mv_select.append(f"    after_{name} AS {name}")
+
+        mv_select.append("    0 AS is_deleted")
+        # Only add default updated_at_dt in MV if no timestamp column creates it
+        has_updated_at = any(
+            c["name"] == "updated_at" and c.get("is_timestamp")
+            for c in columns
+        )
+        if not has_updated_at:
+            mv_select.append("    now() AS updated_at_dt")
+
+        mv_ddl = (
+            f"\n-- Bronze-to-Silver MV\n"
+            f"CREATE MATERIALIZED VIEW IF NOT EXISTS bronze.{entity}_to_silver_mv\n"
+            f"TO silver.{entity}\n"
+            f"AS SELECT\n"
+            + ",\n".join(mv_select) + "\n"
+            f"FROM bronze.{entity}_kafka;\n"
+        )
+
+        silver_ddl += mv_ddl
 
         silver_path = self.output_dir / "clickhouse_silver.sql"
         silver_path.write_text(silver_ddl, encoding="utf-8")
