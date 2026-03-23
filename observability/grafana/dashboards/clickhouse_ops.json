@@ -1,0 +1,134 @@
+{
+  "uid": "of-clickhouse-ops",
+  "title": "OrderFlow \u2014 ClickHouse Operations",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 1,
+      "title": "Slow Queries (>1s, last 7d)",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT query_id, left(query, 80) AS query_preview, query_duration_ms, read_rows FROM system.query_log WHERE query_duration_ms > 1000 AND event_time >= now() - INTERVAL 7 DAY AND type = 'QueryFinish' ORDER BY query_duration_ms DESC LIMIT 20",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 2,
+      "title": "Table Sizes (gold + silver)",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT database, table, formatReadableSize(sum(bytes_on_disk)) AS size_on_disk, sum(rows) AS total_rows FROM system.parts WHERE active = 1 AND database IN ('gold', 'silver') GROUP BY database, table ORDER BY database, table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 3,
+      "title": "Active Mutations",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT database, table, mutation_id, left(command, 60) AS command, is_done FROM system.mutations WHERE is_done = 0 ORDER BY create_time DESC LIMIT 20",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "tags": [
+    "orderflow"
+  ],
+  "timezone": "browser"
+}

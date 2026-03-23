@@ -1,0 +1,134 @@
+{
+  "uid": "of-business-metrics",
+  "title": "OrderFlow \u2014 Business Metrics (dbt_dev__gold)",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 1,
+      "title": "Orders by Status",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT status, sum(order_count) AS total_orders FROM dbt_dev__gold.mart_order_funnel GROUP BY status ORDER BY total_orders DESC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 2,
+      "title": "Revenue by Restaurant (top 20)",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT restaurant_id, restaurant_name, round(sum(gross_revenue), 2) AS total_revenue FROM dbt_dev__gold.mart_restaurant_revenue GROUP BY restaurant_id, restaurant_name ORDER BY total_revenue DESC LIMIT 20",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 3,
+      "title": "Driver KPIs by Vehicle Type",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT vehicle_type, count(DISTINCT driver_id) AS driver_count, sum(deliveries_completed) AS total_deliveries FROM dbt_dev__gold.mart_driver_kpis GROUP BY vehicle_type ORDER BY total_deliveries DESC",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "tags": [
+    "orderflow"
+  ],
+  "timezone": "browser"
+}

@@ -1,0 +1,134 @@
+{
+  "uid": "of-data-quality",
+  "title": "OrderFlow \u2014 Data Quality",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 1,
+      "title": "PII Audit Failures (last 7d)",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT entity, check_type, sum(failure_count) AS total_failures FROM gold.pii_audit_log WHERE audit_timestamp >= now() - INTERVAL 7 DAY GROUP BY entity, check_type ORDER BY total_failures DESC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 2,
+      "title": "Schema Drift Events (last 7d)",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT checked_at, entity, added_columns, removed_columns, type_changes FROM gold.schema_drift_log WHERE drift_detected = 1 AND checked_at >= now() - INTERVAL 7 DAY ORDER BY checked_at DESC LIMIT 50",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "options": {
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.0",
+      "id": 3,
+      "title": "DAG Quality Gate Runs (last 30d)",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": "table",
+          "rawSql": "SELECT dag_id, task_id, state, event_timestamp FROM gold.dag_run_log WHERE dag_id = 'orderflow_quality_gate' AND event_timestamp >= now() - INTERVAL 30 DAY ORDER BY event_timestamp DESC",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "tags": [
+    "orderflow"
+  ],
+  "timezone": "browser"
+}
