@@ -239,6 +239,6 @@ Cost discipline: `make pause` after every session to stop the EC2 instance. Infr
 
 **Tarig Elamin** — Data Platform Engineer, Riyadh, KSA
 
-- AWS SAA-C03 (823) | CLF-C02 (734) | AIF-C01 (754)| DEA-C01 (pending)
+- AWS SAA-C03 (823) | CLF-C02 (734) | AIF-C01 (754) | DEA-C01 (pending)
 - GitHub: [tarigelamin1997](https://github.com/tarigelamin1997)
 - LinkedIn: [linkedin.com/in/tarigelamin](https://linkedin.com/in/tarigelamin)
